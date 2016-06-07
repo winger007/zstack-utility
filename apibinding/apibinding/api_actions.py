@@ -16,6 +16,18 @@ class QueryApplianceVmAction(inventory.APIQueryApplianceVmMsg):
         self.out = reply.inventories
         return self.out
 
+class UpdateCephBackupStorageMonAction(inventory.APIUpdateCephBackupStorageMonMsg):
+    def __init__(self):
+        super(UpdateCephBackupStorageMonAction, self).__init__()
+        self.sessionUuid = None
+        self.out = None
+    def run(self):
+        if not self.sessionUuid:
+            raise Exception('sessionUuid of action[UpdateCephBackupStorageMonAction] cannot be None')
+        evt = api.async_call(self, self.sessionUuid)
+        self.out = evt
+        return self.out
+
 class AddMonToCephBackupStorageAction(inventory.APIAddMonToCephBackupStorageMsg):
     def __init__(self):
         super(AddMonToCephBackupStorageAction, self).__init__()
@@ -24,18 +36,6 @@ class AddMonToCephBackupStorageAction(inventory.APIAddMonToCephBackupStorageMsg)
     def run(self):
         if not self.sessionUuid:
             raise Exception('sessionUuid of action[AddMonToCephBackupStorageAction] cannot be None')
-        evt = api.async_call(self, self.sessionUuid)
-        self.out = evt
-        return self.out
-
-class UpdateMonToCephBackupStorageAction(inventory.APIUpdateMonToCephBackupStorageMsg):
-    def __init__(self):
-        super(UpdateMonToCephBackupStorageAction, self).__init__()
-        self.sessionUuid = None
-        self.out = None
-    def run(self):
-        if not self.sessionUuid:
-            raise Exception('sessionUuid of action[UpdateMonToCephBackupStorageAction] cannot be None')
         evt = api.async_call(self, self.sessionUuid)
         self.out = evt
         return self.out
@@ -78,6 +78,18 @@ class AddCephBackupStorageAction(inventory.APIAddCephBackupStorageMsg):
         self.out = evt
         return self.out
 
+class UpdateCephPrimaryStorageMonAction(inventory.APIUpdateCephPrimaryStorageMonMsg):
+    def __init__(self):
+        super(UpdateCephPrimaryStorageMonAction, self).__init__()
+        self.sessionUuid = None
+        self.out = None
+    def run(self):
+        if not self.sessionUuid:
+            raise Exception('sessionUuid of action[UpdateCephPrimaryStorageMonAction] cannot be None')
+        evt = api.async_call(self, self.sessionUuid)
+        self.out = evt
+        return self.out
+
 class AddCephPrimaryStorageAction(inventory.APIAddCephPrimaryStorageMsg):
     def __init__(self):
         super(AddCephPrimaryStorageAction, self).__init__()
@@ -114,18 +126,6 @@ class QueryCephPrimaryStorageAction(inventory.APIQueryCephPrimaryStorageMsg):
         reply = api.sync_call(self, self.sessionUuid)
         self.reply = reply
         self.out = reply.inventories
-        return self.out
-
-class UpdateMonToCephPrimaryStorageAction(inventory.APIUpdateMonToCephPrimaryStorageMsg):
-    def __init__(self):
-        super(UpdateMonToCephPrimaryStorageAction, self).__init__()
-        self.sessionUuid = None
-        self.out = None
-    def run(self):
-        if not self.sessionUuid:
-            raise Exception('sessionUuid of action[UpdateMonToCephPrimaryStorageAction] cannot be None')
-        evt = api.async_call(self, self.sessionUuid)
-        self.out = evt
         return self.out
 
 class AddMonToCephPrimaryStorageAction(inventory.APIAddMonToCephPrimaryStorageMsg):
