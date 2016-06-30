@@ -8,6 +8,9 @@ import time
 
 logger = log.get_logger(__name__)
 
+class BashError(Exception):
+    '''bash error'''
+
 # @return: return code, stdout, stderr
 def bash_roe(cmd, errorout=False, ret_code = 0):
     frames = []
@@ -37,7 +40,7 @@ def bash_roe(cmd, errorout=False, ret_code = 0):
         })
 
     if r != ret_code and errorout:
-        raise Exception('failed to execute bash[%s], return code: %s, stdout: %s, stderr: %s' % (cmd, r, o, e))
+        raise BashError('failed to execute bash[%s], return code: %s, stdout: %s, stderr: %s' % (cmd, r, o, e))
 
     return r, o, e
 
