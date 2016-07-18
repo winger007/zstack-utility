@@ -178,6 +178,18 @@ class QueryGlobalConfigAction(inventory.APIQueryGlobalConfigMsg):
         self.out = reply.inventories
         return self.out
 
+class DeleteSchedulerAction(inventory.APIDeleteSchedulerMsg):
+    def __init__(self):
+        super(DeleteSchedulerAction, self).__init__()
+        self.sessionUuid = None
+        self.out = None
+    def run(self):
+        if not self.sessionUuid:
+            raise Exception('sessionUuid of action[DeleteSchedulerAction] cannot be None')
+        evt = api.async_call(self, self.sessionUuid)
+        self.out = evt
+        return self.out
+
 class UpdateEipAction(inventory.APIUpdateEipMsg):
     def __init__(self):
         super(UpdateEipAction, self).__init__()
