@@ -314,6 +314,18 @@ class QueryEipAction(inventory.APIQueryEipMsg):
         self.out = reply.inventories
         return self.out
 
+class GetL3NetworkDhcpIpAddressAction(inventory.APIGetL3NetworkDhcpIpAddressMsg):
+    def __init__(self):
+        super(GetL3NetworkDhcpIpAddressAction, self).__init__()
+        self.sessionUuid = None
+        self.out = None
+    def run(self):
+        if not self.sessionUuid:
+            raise Exception('sessionUuid of action[GetL3NetworkDhcpIpAddressAction] cannot be None')
+        evt = api.async_call(self, self.sessionUuid)
+        self.out = evt
+        return self.out
+
 class RemoveMonFromFusionstorBackupStorageAction(inventory.APIRemoveMonFromFusionstorBackupStorageMsg):
     def __init__(self):
         super(RemoveMonFromFusionstorBackupStorageAction, self).__init__()
@@ -580,6 +592,18 @@ class ChangePrimaryStorageStateAction(inventory.APIChangePrimaryStorageStateMsg)
     def run(self):
         if not self.sessionUuid:
             raise Exception('sessionUuid of action[ChangePrimaryStorageStateAction] cannot be None')
+        evt = api.async_call(self, self.sessionUuid)
+        self.out = evt
+        return self.out
+
+class CleanUpImageCacheOnPrimaryStorageAction(inventory.APICleanUpImageCacheOnPrimaryStorageMsg):
+    def __init__(self):
+        super(CleanUpImageCacheOnPrimaryStorageAction, self).__init__()
+        self.sessionUuid = None
+        self.out = None
+    def run(self):
+        if not self.sessionUuid:
+            raise Exception('sessionUuid of action[CleanUpImageCacheOnPrimaryStorageAction] cannot be None')
         evt = api.async_call(self, self.sessionUuid)
         self.out = evt
         return self.out
