@@ -92,7 +92,37 @@ class WriteImageMetaDataCmd(AgentCommand):
     def __init__(self):
         super(WriteImageMetaDataCmd, self).__init__()
         self.metaData = None
-        
+
+class DumpImageMetaDataToFileResponse(AgentResponse):
+    def __init__(self):
+        super(DumpImageMetaDataToFileResponse,self).__init__()
+
+class DumpImageMetaDataToFileCmd(AgentCommand):
+    def __init__(self):
+        super(DumpImageMetaDataToFileCmd, self).__init__()
+        self.metaData = None
+
+class GenerateImageMetaDataFileResponse(AgentResponse):
+    def __init__(self):
+        super(GenerateImageMetaDataFileResponse, self).__init__()
+        self.bsFileName = None
+
+class GenerateImageMetaDataFileCmd(AgentCommand):
+    def __init__(self):
+        super(GenerateImageMetaDataFileCmd, self).__init__()
+        self.bsPath = None
+
+class CheckImageMetaDataFileExistResponse(AgentResponse):
+    def __init__(self):
+        super(CheckImageMetaDataFileExistResponse, self).__init__()
+        self.bsMetaFileName = None
+        self.exist = None
+
+class CheckImageMetaDataFileExistCmd(AgentCommand):
+    def __init__(self):
+        super(CheckImageMetaDataFileExistCmd, self).__init__()
+        self.bsPath = None
+
 class GetSshKeyCommand(AgentCommand):
     def __init__(self):
         super(GetSshKeyCommand, self).__init__()
@@ -137,6 +167,9 @@ class SftpBackupStorageAgent(object):
     GET_SSHKEY_PATH = "/sftpbackupstorage/sshkey"
     ECHO_PATH = "/sftpbackupstorage/echo"
     WRITE_IMAGE_METADATA = "/sftpbackupstorage/writeimagemetadata"
+    DUMP_IMAGE_METADATA_TO_FILE = "/sftpbackupstorage/dumpimagemetadatatofile"
+    GENERATE_IMAGE_METADATA_FILE = "/sftpbackupstorage/generateimagemetadatafile"
+    CHECK_IMAGE_METADATA_FILE_EXIST = "/sftpbackupstorage/checkimagemetadatafileexist"
     GET_IMAGE_SIZE = "/sftpbackupstorage/getimagesize"
 
     IMAGE_TEMPLATE = 'template'
@@ -201,13 +234,61 @@ class SftpBackupStorageAgent(object):
         with open(metapath, 'w') as fd:
             fd.write(jsonobject.dumps(meta, pretty=True))
         return (size, md5sum)
-    
+
     @replyerror
     def write_image_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         meta_data = cmd.metaData
         self._write_image_metadata(meta_data.installPath, meta_data)
         rsp = WriteImageMetaDataResponse()
+        return jsonobject.dumps(rsp)
+
+    @in_bash
+    def _generate_image_metadata_file(self, bs_path):
+        bs_meta_file = bs_path + '/bs_info.yaml'
+        if os.path.isfile(bs_meta_file) is False:
+            #dir = '/'.join(bs_path.split("/")[:-1])
+            if os.path.exists(bs_path) is False:
+                os.makedirs(bs_path)
+            ret, output = bash_ro("touch %s" % bs_meta_file)
+            if ret == 0:
+                return  bs_meta_file
+            else:
+                raise  Exception('can not create image metadata file %s' % output)
+        else:
+            return bs_meta_file
+
+
+    @replyerror
+    def generate_image_metadata_file(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_path = cmd.BackupStoragePath
+        file_name = self._generate_image_metadata_file(bs_path)
+        rsp = GenerateImageMetaDataFileResponse()
+        rsp.bsFileName = file_name
+        return jsonobject.dumps(rsp)
+
+    @replyerror
+    def check_image_metadata_file_exist(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_path = cmd.BackupStoragePath
+        bs_info_file = bs_path + '/bs_info.yaml'
+        rsp = CheckImageMetaDataFileExistResponse()
+        rsp.bsFileName = bs_info_file
+        if os.path.isfile(bs_info_file):
+            rsp.exist = True
+        else:
+            rsp.exist = False
+        return jsonobject.dumps(rsp)
+
+    @replyerror
+    def dump_image_metadata_to_file(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_info_file = cmd.BackupStoragePath + '/bs_info.yaml'
+        content = cmd.ImageMetaData
+        with open(bs_info_file, 'a') as fd:
+            fd.write(content + '\n')
+        rsp = DumpImageMetaDataToFileResponse()
         return jsonobject.dumps(rsp)
 
     @in_bash
@@ -315,6 +396,9 @@ class SftpBackupStorageAgent(object):
         self.http_server.register_async_uri(self.DELETE_IMAGE_PATH, self.delete_image)
         self.http_server.register_async_uri(self.GET_SSHKEY_PATH, self.get_sshkey)
         self.http_server.register_async_uri(self.WRITE_IMAGE_METADATA, self.write_image_metadata)
+        self.http_server.register_async_uri(self.GENERATE_IMAGE_METADATA_FILE, self.generate_image_metadata_file)
+        self.http_server.register_async_uri(self.CHECK_IMAGE_METADATA_FILE_EXIST, self.check_image_metadata_file_exist)
+        self.http_server.register_async_uri(self.DUMP_IMAGE_METADATA_TO_FILE, self.dump_image_metadata_to_file)
         self.http_server.register_async_uri(self.PING_PATH, self.ping)
         self.http_server.register_async_uri(self.GET_IMAGE_SIZE, self.get_image_size)
         self.storage_path = None
