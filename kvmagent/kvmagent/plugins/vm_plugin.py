@@ -87,23 +87,23 @@ class StopVmResponse(kvmagent.AgentResponse):
 
 class SuspendVmCmd(kvmagent.AgentCommand):
     def __init__(self):
-        super(StopVmCmd, self).__init__()
+        super(SuspendVmCmd, self).__init__()
         self.uuid = None
         self.timeout = None
 
 class SuspendVmResponse(kvmagent.AgentResponse):
     def __init__(self):
-        super(StopVmResponse, self).__init__()
+        super(SuspendVmResponse, self).__init__()
 
 class ResumeVmCmd(kvmagent.AgentCommand):
     def __init__(self):
-        super(StopVmCmd, self).__init__()
+        super(ResumeVmCmd, self).__init__()
         self.uuid = None
         self.timeout = None
 
 class ResumeVmResponse(kvmagent.AgentResponse):
     def __init__(self):
-        super(StopVmResponse, self).__init__()
+        super(ResumeVmResponse, self).__init__()
 
 class RebootVmCmd(kvmagent.AgentCommand):
     def __init__(self):
@@ -820,6 +820,10 @@ class VmOperationJudger(object):
         elif self.op == VmPlugin.VM_OP_REBOOT:
             self.expected_events[LibvirtEventManager.EVENT_STARTED] = LibvirtEventManager.EVENT_STARTED
             self.expected_events[LibvirtEventManager.EVENT_STOPPED] = LibvirtEventManager.EVENT_STOPPED
+        elif self.op == VmPlugin.VM_OP_SUSPEND:
+            self.expected_events[LibvirtEventManager.EVENT_SUSPENDED] = LibvirtEventManager.EVENT_SUSPENDED
+        elif self.op == VmPlugin.VM_OP_RESUME:
+            self.expected_events[LibvirtEventManager.EVENT_RESUMED] = LibvirtEventManager.EVENT_RESUMED
         else:
             raise Exception('unknown vm operation[%s]' % self.op)
 
