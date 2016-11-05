@@ -93,6 +93,16 @@ class WriteImageMetaDataCmd(AgentCommand):
         super(WriteImageMetaDataCmd, self).__init__()
         self.metaData = None
 
+class GetImageMetaDataResponse(AgentResponse):
+    def __init__(self):
+        super(GetImageMetaDataResponse,self).__init__()
+        self.metaData = None
+
+class GetImageMetaDataCmd(AgentCommand):
+    def __init__(self):
+        super(GetImageMetaDataCmd, self).__init__()
+        self.bsPath = None
+
 class DumpImageMetaDataToFileResponse(AgentResponse):
     def __init__(self):
         super(DumpImageMetaDataToFileResponse,self).__init__()
@@ -170,6 +180,7 @@ class SftpBackupStorageAgent(object):
     DUMP_IMAGE_METADATA_TO_FILE = "/sftpbackupstorage/dumpimagemetadatatofile"
     GENERATE_IMAGE_METADATA_FILE = "/sftpbackupstorage/generateimagemetadatafile"
     CHECK_IMAGE_METADATA_FILE_EXIST = "/sftpbackupstorage/checkimagemetadatafileexist"
+    GET_IMAGES_METADATA = "/sftpbackupstorage/getimagesmetadata"
     GET_IMAGE_SIZE = "/sftpbackupstorage/getimagesize"
 
     IMAGE_TEMPLATE = 'template'
@@ -291,6 +302,15 @@ class SftpBackupStorageAgent(object):
         rsp = DumpImageMetaDataToFileResponse()
         return jsonobject.dumps(rsp)
 
+    def get_images_metadata(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_info_file = cmd.BackupStoragePath + '/bs_info.yaml'
+        with open(bs_info_file) as fd:
+            imagesInfo = fd.read()
+        rsp = GetImageMetaDataResponse()
+        rsp.metaData = imagesInfo
+        return jsonobject.dumps(rsp)
+
     @in_bash
     @replyerror
     def download_image(self, req):
@@ -399,6 +419,7 @@ class SftpBackupStorageAgent(object):
         self.http_server.register_async_uri(self.GENERATE_IMAGE_METADATA_FILE, self.generate_image_metadata_file)
         self.http_server.register_async_uri(self.CHECK_IMAGE_METADATA_FILE_EXIST, self.check_image_metadata_file_exist)
         self.http_server.register_async_uri(self.DUMP_IMAGE_METADATA_TO_FILE, self.dump_image_metadata_to_file)
+        self.http_server.register_async_uri(self.GET_IMAGES_METADATA, self.get_images_metadata)
         self.http_server.register_async_uri(self.PING_PATH, self.ping)
         self.http_server.register_async_uri(self.GET_IMAGE_SIZE, self.get_image_size)
         self.storage_path = None
