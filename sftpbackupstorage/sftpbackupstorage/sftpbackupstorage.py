@@ -257,7 +257,7 @@ class SftpBackupStorageAgent(object):
 
     @in_bash
     def _generate_image_metadata_file(self, bs_path):
-        bs_meta_file = bs_path + '/bs_info.yaml'
+        bs_meta_file = bs_path + '/bs_sftp_info.json'
         if os.path.isfile(bs_meta_file) is False:
             #dir = '/'.join(bs_path.split("/")[:-1])
             if os.path.exists(bs_path) is False:
@@ -284,10 +284,10 @@ class SftpBackupStorageAgent(object):
     def check_image_metadata_file_exist(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         bs_path = cmd.BackupStoragePath
-        bs_info_file = bs_path + '/bs_info.yaml'
+        bs_sftp_info_file = bs_path + '/bs_sftp_info.json'
         rsp = CheckImageMetaDataFileExistResponse()
-        rsp.bsFileName = bs_info_file
-        if os.path.isfile(bs_info_file):
+        rsp.bsFileName = bs_sftp_info_file
+        if os.path.isfile(bs_sftp_info_file):
             rsp.exist = True
         else:
             rsp.exist = False
@@ -296,17 +296,26 @@ class SftpBackupStorageAgent(object):
     @replyerror
     def dump_image_metadata_to_file(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        bs_info_file = cmd.BackupStoragePath + '/bs_info.yaml'
+        bs_sftp_info_file = cmd.BackupStoragePath + '/bs_sftp_info.json'
         content = cmd.ImageMetaData
-        with open(bs_info_file, 'a') as fd:
-            fd.write(content + '\n')
+        if '[' == content[0] and ']' == content[-1]:
+            with open(bs_sftp_info_file, 'a') as fd:
+                strip_list_content = content[1:-1]
+                data_list = strip_list_content.split('},')
+                for item in data_list:
+                    if item.endswith("}") is not True:
+                        item = item + "}"
+                        fd.write(item + '\n')
+        else:
+            with open(bs_sftp_info_file, 'a') as fd:
+                fd.write(content + '\n')
         rsp = DumpImageMetaDataToFileResponse()
         return jsonobject.dumps(rsp)
 
     def get_images_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        bs_info_file = cmd.BackupStoragePath + '/bs_info.yaml'
-        with open(bs_info_file) as fd:
+        bs_sftp_info_file = cmd.BackupStoragePath + '/bs_sftp_info.json'
+        with open(bs_sftp_info_file) as fd:
             imagesInfo = fd.read()
         rsp = GetImageMetaDataResponse()
         rsp.metaData = imagesInfo
