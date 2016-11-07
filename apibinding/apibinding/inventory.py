@@ -3244,6 +3244,7 @@ class APIAddSimulatorBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
+        self.importImageInfo = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -3293,7 +3294,7 @@ class APIChangeBackupStorageStateMsg(object):
         #mandatory field
         self.uuid = NotNoneField()
         #mandatory field
-        #valid values: [enable, disable]
+        #valid values: [enable, disable, maintain]
         self.stateEvent = NotNoneField()
         self.session = None
         self.timeout = None
@@ -7141,6 +7142,7 @@ class APIAddImageStoreBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
+        self.importImageInfo = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -7226,6 +7228,7 @@ class APIAddSftpBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
+        self.importImageInfo = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -7324,6 +7327,7 @@ class APIAddCephBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
+        self.importImageInfo = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -7498,6 +7502,7 @@ class APIAddFusionstorBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
+        self.importImageInfo = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -9842,6 +9847,7 @@ class BackupStorageInventory(object):
         self.type = None
         self.state = None
         self.status = None
+        self.importImageInfo = None
         self.createDate = None
         self.lastOpDate = None
         self.attachedZoneUuids = None
@@ -9891,6 +9897,11 @@ class BackupStorageInventory(object):
             self.status = inv.status
         else:
             self.status = None
+
+        if hasattr(inv, 'importImageInfo'):
+            self.importImageInfo = inv.importImageInfo
+        else:
+            self.importImageInfo = None
 
         if hasattr(inv, 'createDate'):
             self.createDate = inv.createDate
@@ -11262,7 +11273,7 @@ class QueryObjectApplianceVmInventory(object):
      }
 
 class QueryObjectBackupStorageInventory(object):
-     PRIMITIVE_FIELDS = ['availableCapacity','totalCapacity','name','lastOpDate','description','state','type','uuid','url','status','createDate','__userTag__','__systemTag__']
+     PRIMITIVE_FIELDS = ['availableCapacity','description','type','uuid','url','totalCapacity','name','lastOpDate','state','status','importImageInfo','createDate','__userTag__','__systemTag__']
      EXPANDED_FIELDS = ['image','volumeSnapshot','zone']
      QUERY_OBJECT_MAP = {
         'image' : 'QueryObjectImageInventory',
@@ -11279,7 +11290,7 @@ class QueryObjectBackupStorageZoneRefInventory(object):
      }
 
 class QueryObjectCephBackupStorageInventory(object):
-     PRIMITIVE_FIELDS = ['availableCapacity','description','type','uuid','url','totalCapacity','fsid','name','lastOpDate','state','poolName','status','createDate','__userTag__','__systemTag__']
+     PRIMITIVE_FIELDS = ['availableCapacity','description','type','uuid','url','totalCapacity','fsid','name','lastOpDate','state','poolName','status','importImageInfo','createDate','__userTag__','__systemTag__']
      EXPANDED_FIELDS = ['mons','mons','image','volumeSnapshot','zone']
      QUERY_OBJECT_MAP = {
         'image' : 'QueryObjectImageInventory',
@@ -11366,7 +11377,7 @@ class QueryObjectEipInventory(object):
      }
 
 class QueryObjectFusionstorBackupStorageInventory(object):
-     PRIMITIVE_FIELDS = ['sshPort','availableCapacity','description','type','uuid','url','totalCapacity','fsid','name','lastOpDate','state','poolName','status','createDate','__userTag__','__systemTag__']
+     PRIMITIVE_FIELDS = ['sshPort','availableCapacity','description','type','uuid','url','totalCapacity','fsid','name','lastOpDate','state','poolName','status','importImageInfo','createDate','__userTag__','__systemTag__']
      EXPANDED_FIELDS = ['mons','mons','image','volumeSnapshot','zone']
      QUERY_OBJECT_MAP = {
         'image' : 'QueryObjectImageInventory',
@@ -11450,7 +11461,7 @@ class QueryObjectImageInventory(object):
      }
 
 class QueryObjectImageStoreBackupStorageInventory(object):
-     PRIMITIVE_FIELDS = ['sshPort','availableCapacity','description','type','uuid','url','hostname','totalCapacity','name','lastOpDate','state','username','status','createDate','__userTag__','__systemTag__']
+     PRIMITIVE_FIELDS = ['sshPort','availableCapacity','description','type','uuid','url','hostname','totalCapacity','name','lastOpDate','state','username','status','importImageInfo','createDate','__userTag__','__systemTag__']
      EXPANDED_FIELDS = ['image','volumeSnapshot','zone']
      QUERY_OBJECT_MAP = {
         'image' : 'QueryObjectImageInventory',
@@ -11700,7 +11711,7 @@ class QueryObjectSecurityGroupRuleInventory(object):
      }
 
 class QueryObjectSftpBackupStorageInventory(object):
-     PRIMITIVE_FIELDS = ['sshPort','availableCapacity','description','type','uuid','url','hostname','totalCapacity','name','lastOpDate','state','username','status','createDate','__userTag__','__systemTag__']
+     PRIMITIVE_FIELDS = ['sshPort','availableCapacity','description','type','uuid','url','hostname','totalCapacity','name','lastOpDate','state','username','status','importImageInfo','createDate','__userTag__','__systemTag__']
      EXPANDED_FIELDS = ['image','volumeSnapshot','zone']
      QUERY_OBJECT_MAP = {
         'image' : 'QueryObjectImageInventory',
@@ -11775,7 +11786,7 @@ class QueryObjectUserTagInventory(object):
      }
 
 class QueryObjectVCenterBackupStorageInventory(object):
-     PRIMITIVE_FIELDS = ['availableCapacity','description','type','uuid','url','totalCapacity','name','lastOpDate','vCenterUuid','state','status','createDate','__userTag__','__systemTag__']
+     PRIMITIVE_FIELDS = ['availableCapacity','description','type','uuid','url','totalCapacity','name','lastOpDate','vCenterUuid','state','status','importImageInfo','createDate','__userTag__','__systemTag__']
      EXPANDED_FIELDS = ['image','volumeSnapshot','zone']
      QUERY_OBJECT_MAP = {
         'image' : 'QueryObjectImageInventory',
