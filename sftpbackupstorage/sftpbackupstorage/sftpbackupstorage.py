@@ -257,6 +257,7 @@ class SftpBackupStorageAgent(object):
 
     @in_bash
     def _generate_image_metadata_file(self, bs_path):
+        # todo change bs_sftp_info.json to bs_image_info.json
         bs_meta_file = bs_path + '/bs_sftp_info.json'
         if os.path.isfile(bs_meta_file) is False:
             #dir = '/'.join(bs_path.split("/")[:-1])
@@ -269,7 +270,6 @@ class SftpBackupStorageAgent(object):
                 raise  Exception('can not create image metadata file %s' % output)
         else:
             return bs_meta_file
-
 
     @replyerror
     def generate_image_metadata_file(self, req):
@@ -284,6 +284,7 @@ class SftpBackupStorageAgent(object):
     def check_image_metadata_file_exist(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         bs_path = cmd.BackupStoragePath
+        # todo change bs_sftp_info.json to bs_image_info.json
         bs_sftp_info_file = bs_path + '/bs_sftp_info.json'
         rsp = CheckImageMetaDataFileExistResponse()
         rsp.bsFileName = bs_sftp_info_file
@@ -296,6 +297,7 @@ class SftpBackupStorageAgent(object):
     @replyerror
     def dump_image_metadata_to_file(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        # todo change bs_sftp_info.json to bs_image_info.json
         bs_sftp_info_file = cmd.BackupStoragePath + '/bs_sftp_info.json'
         content = cmd.ImageMetaData
         if '[' == content[0] and ']' == content[-1]:
@@ -313,7 +315,9 @@ class SftpBackupStorageAgent(object):
         return jsonobject.dumps(rsp)
 
     def get_images_metadata(self, req):
+        # get bs uuid and change new uuid to ref vo
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        # todo change bs_sftp_info.json to bs_image_info.json
         bs_sftp_info_file = cmd.BackupStoragePath + '/bs_sftp_info.json'
         with open(bs_sftp_info_file) as fd:
             imagesInfo = fd.read()
