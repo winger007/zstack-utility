@@ -20,6 +20,7 @@ import time
 class ConnectResponse(kvmagent.AgentResponse):
     def __init__(self):
         super(ConnectResponse, self).__init__()
+        self.iptablesSucc = None
 
 class HostCapacityResponse(kvmagent.AgentResponse):
     def __init__(self):
@@ -96,6 +97,19 @@ class HostPlugin(kvmagent.KvmAgent):
 
         raise kvmagent.KvmError('cannot get qemu version[%s]' % ret)
 
+    @in_bash
+    def apply_iptables_rules(self, rules):
+        if rules != "":
+            iptables_rules = rules.split(',')
+            for rule in iptables_rules:
+                clean_rule = ' '.join(rule.split(' ')[1:])
+                ret = bash_r("iptables -C %s " % clean_rule)
+                if ret == 1:
+                    bash_r("iptables %s" % rule)
+                else:
+                    raise Exception('cannot set iptables rule: %s' % rule)
+        return True
+
     @kvmagent.replyerror
     def connect(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
@@ -108,7 +122,8 @@ class HostPlugin(kvmagent.KvmAgent):
         rsp.qemuVersion = self.qemu_version
 
         vm_plugin.cleanup_stale_vnc_iptable_chains()
-
+        apply_iptables_result = self.apply_iptables_rules(cmd.iptables_rules)
+        rsp.iptablesSucc = apply_iptables_result
         return jsonobject.dumps(rsp)
     
     @kvmagent.replyerror
