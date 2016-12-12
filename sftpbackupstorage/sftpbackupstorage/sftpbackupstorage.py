@@ -315,7 +315,6 @@ class SftpBackupStorageAgent(object):
         return jsonobject.dumps(rsp)
 
     def get_images_metadata(self, req):
-        # get bs uuid and change new uuid to ref vo
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         # todo change bs_sftp_info.json to bs_image_info.json
         bs_sftp_info_file = cmd.BackupStoragePath + '/bs_sftp_info.json'

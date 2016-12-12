@@ -3244,7 +3244,7 @@ class APIAddSimulatorBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
-        self.importImageInfo = None
+        self.importImages = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -3294,7 +3294,7 @@ class APIChangeBackupStorageStateMsg(object):
         #mandatory field
         self.uuid = NotNoneField()
         #mandatory field
-        #valid values: [enable, disable, maintain]
+        #valid values: [enable, disable]
         self.stateEvent = NotNoneField()
         self.session = None
         self.timeout = None
@@ -7142,7 +7142,7 @@ class APIAddImageStoreBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
-        self.importImageInfo = None
+        self.importImages = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -7228,7 +7228,7 @@ class APIAddSftpBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
-        self.importImageInfo = None
+        self.importImages = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -7327,7 +7327,7 @@ class APIAddCephBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
-        self.importImageInfo = None
+        self.importImages = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
@@ -7502,7 +7502,7 @@ class APIAddFusionstorBackupStorageMsg(object):
         self.name = NotNoneField()
         self.description = None
         self.type = None
-        self.importImageInfo = None
+        self.importImages = None
         self.resourceUuid = None
         self.session = None
         self.timeout = None
