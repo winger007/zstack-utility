@@ -84,6 +84,16 @@ class DownloadResponse(AgentResponse):
         self.actualSize = None
         self.format = None
 
+class DeleteImageMetaDataResponse(AgentResponse):
+    def __init__(self):
+        super(DeleteImageMetaDataResponse,self).__init__()
+        self.ret = None
+
+class DeleteImageMetaDataCmd(AgentCommand):
+    def __init__(self):
+        super(DeleteImageMetaDataCmd, self).__init__()
+        self.uuid= None
+
 class WriteImageMetaDataResponse(AgentResponse):
     def __init__(self):
         super(WriteImageMetaDataResponse,self).__init__()
@@ -96,7 +106,7 @@ class WriteImageMetaDataCmd(AgentCommand):
 class GetImageMetaDataResponse(AgentResponse):
     def __init__(self):
         super(GetImageMetaDataResponse,self).__init__()
-        self.metaData = None
+        self.ImagesMetaData = None
 
 class GetImageMetaDataCmd(AgentCommand):
     def __init__(self):
@@ -125,7 +135,7 @@ class GenerateImageMetaDataFileCmd(AgentCommand):
 class CheckImageMetaDataFileExistResponse(AgentResponse):
     def __init__(self):
         super(CheckImageMetaDataFileExistResponse, self).__init__()
-        self.bsMetaFileName = None
+        self.BackupStorageMetaFileName = None
         self.exist = None
 
 class CheckImageMetaDataFileExistCmd(AgentCommand):
@@ -177,6 +187,7 @@ class SftpBackupStorageAgent(object):
     GET_SSHKEY_PATH = "/sftpbackupstorage/sshkey"
     ECHO_PATH = "/sftpbackupstorage/echo"
     WRITE_IMAGE_METADATA = "/sftpbackupstorage/writeimagemetadata"
+    DELETE_IMAGES_METADATA = "/sftpbackupstorage/deleteimagesmetadata"
     DUMP_IMAGE_METADATA_TO_FILE = "/sftpbackupstorage/dumpimagemetadatatofile"
     GENERATE_IMAGE_METADATA_FILE = "/sftpbackupstorage/generateimagemetadatafile"
     CHECK_IMAGE_METADATA_FILE_EXIST = "/sftpbackupstorage/checkimagemetadatafileexist"
@@ -191,6 +202,7 @@ class SftpBackupStorageAgent(object):
     URL_NFS = 'nfs'
     PORT = 7171
     SSHKEY_PATH = "~/.ssh/id_rsa.sftp"
+    SFTP_METADATA_FILE = "bs_sftp_info.json"
 
     http_server = http.HttpServer(PORT)
     http_server.logfile_path = log.get_logfile_path()
@@ -257,8 +269,7 @@ class SftpBackupStorageAgent(object):
 
     @in_bash
     def _generate_image_metadata_file(self, bs_path):
-        # todo change bs_sftp_info.json to bs_image_info.json
-        bs_meta_file = bs_path + '/bs_sftp_info.json'
+        bs_meta_file = bs_path + '/' + self.SFTP_METADATA_FILE
         if os.path.isfile(bs_meta_file) is False:
             #dir = '/'.join(bs_path.split("/")[:-1])
             if os.path.exists(bs_path) is False:
@@ -285,9 +296,9 @@ class SftpBackupStorageAgent(object):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         bs_path = cmd.BackupStoragePath
         # todo change bs_sftp_info.json to bs_image_info.json
-        bs_sftp_info_file = bs_path + '/bs_sftp_info.json'
+        bs_sftp_info_file = bs_path + '/' + self.SFTP_METADATA_FILE
         rsp = CheckImageMetaDataFileExistResponse()
-        rsp.bsFileName = bs_sftp_info_file
+        rsp.BackupStorageMetaFileName = bs_sftp_info_file
         if os.path.isfile(bs_sftp_info_file):
             rsp.exist = True
         else:
@@ -298,7 +309,7 @@ class SftpBackupStorageAgent(object):
     def dump_image_metadata_to_file(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         # todo change bs_sftp_info.json to bs_image_info.json
-        bs_sftp_info_file = cmd.BackupStoragePath + '/bs_sftp_info.json'
+        bs_sftp_info_file = cmd.BackupStoragePath + '/' + self.SFTP_METADATA_FILE
         content = cmd.ImageMetaData
         if '[' == content[0] and ']' == content[-1]:
             with open(bs_sftp_info_file, 'a') as fd:
@@ -314,14 +325,30 @@ class SftpBackupStorageAgent(object):
         rsp = DumpImageMetaDataToFileResponse()
         return jsonobject.dumps(rsp)
 
+    @in_bash
+    @replyerror
+    def delete_image_metadata_from_file(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        image_uuid = cmd.imageUuid
+        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.SFTP_METADATA_FILE
+        with open(bs_sftp_info_file) as oldfile, open(bs_sftp_info_file + '.new', 'w') as newfile:
+            for line in oldfile:
+                if image_uuid not in line:
+                    newfile.write(line)
+        ret, output = bash_ro("mv %s %s.bak && mv %s.new %s" % (bs_sftp_info_file, bs_sftp_info_file, bs_sftp_info_file, bs_sftp_info_file))
+        rsp = DeleteImageMetaDataResponse()
+        rsp.ret = ret
+        return jsonobject.dumps(rsp)
+
+
     def get_images_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         # todo change bs_sftp_info.json to bs_image_info.json
-        bs_sftp_info_file = cmd.BackupStoragePath + '/bs_sftp_info.json'
+        bs_sftp_info_file = cmd.BackupStoragePath + '/' + self.SFTP_METADATA_FILE
         with open(bs_sftp_info_file) as fd:
             imagesInfo = fd.read()
         rsp = GetImageMetaDataResponse()
-        rsp.metaData = imagesInfo
+        rsp.ImagesMetaData = imagesInfo
         return jsonobject.dumps(rsp)
 
     @in_bash
@@ -431,6 +458,7 @@ class SftpBackupStorageAgent(object):
         self.http_server.register_async_uri(self.GENERATE_IMAGE_METADATA_FILE, self.generate_image_metadata_file)
         self.http_server.register_async_uri(self.CHECK_IMAGE_METADATA_FILE_EXIST, self.check_image_metadata_file_exist)
         self.http_server.register_async_uri(self.DUMP_IMAGE_METADATA_TO_FILE, self.dump_image_metadata_to_file)
+        self.http_server.register_async_uri(self.DELETE_IMAGES_METADATA, self.delete_image_metadata_from_file)
         self.http_server.register_async_uri(self.GET_IMAGES_METADATA, self.get_images_metadata)
         self.http_server.register_async_uri(self.PING_PATH, self.ping)
         self.http_server.register_async_uri(self.GET_IMAGE_SIZE, self.get_image_size)
