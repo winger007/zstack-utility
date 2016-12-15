@@ -285,7 +285,7 @@ class SftpBackupStorageAgent(object):
     @replyerror
     def generate_image_metadata_file(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        bs_path = cmd.BackupStoragePath
+        bs_path = cmd.backupStoragePath
         file_name = self._generate_image_metadata_file(bs_path)
         rsp = GenerateImageMetaDataFileResponse()
         rsp.bsFileName = file_name
@@ -294,7 +294,7 @@ class SftpBackupStorageAgent(object):
     @replyerror
     def check_image_metadata_file_exist(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        bs_path = cmd.BackupStoragePath
+        bs_path = cmd.backupStoragePath
         # todo change bs_sftp_info.json to bs_image_info.json
         bs_sftp_info_file = bs_path + '/' + self.SFTP_METADATA_FILE
         rsp = CheckImageMetaDataFileExistResponse()
@@ -307,21 +307,35 @@ class SftpBackupStorageAgent(object):
 
     @replyerror
     def dump_image_metadata_to_file(self, req):
+        def _write_info_to_metadata_file(fd):
+            strip_list_content = content[1:-1]
+            data_list = strip_list_content.split('},')
+            for item in data_list:
+                if item.endswith("}") is not True:
+                    item = item + "}"
+                    fd.write(item + '\n')
+
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        # todo change bs_sftp_info.json to bs_image_info.json
-        bs_sftp_info_file = cmd.BackupStoragePath + '/' + self.SFTP_METADATA_FILE
-        content = cmd.ImageMetaData
+        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.SFTP_METADATA_FILE
+        content = cmd.imageMetaData
+        dump_all_metadata = cmd.dumpAllMetaData
+        logger.debug("meilei: dump_all_metadata is %s" % dump_all_metadata)
         if '[' == content[0] and ']' == content[-1]:
-            with open(bs_sftp_info_file, 'a') as fd:
-                strip_list_content = content[1:-1]
-                data_list = strip_list_content.split('},')
-                for item in data_list:
-                    if item.endswith("}") is not True:
-                        item = item + "}"
-                        fd.write(item + '\n')
+            if dump_all_metadata is True:
+                with open(bs_sftp_info_file, 'w') as fd:
+                    _write_info_to_metadata_file(fd)
+            else:
+                with open(bs_sftp_info_file, 'a') as fd:
+                    _write_info_to_metadata_file(fd)
         else:
-            with open(bs_sftp_info_file, 'a') as fd:
-                fd.write(content + '\n')
+            #one image info
+            if dump_all_metadata is True:
+                with open(bs_sftp_info_file, 'w') as fd:
+                    fd.write(content + '\n')
+            else:
+                with open(bs_sftp_info_file, 'a') as fd:
+                    fd.write(content + '\n')
+
         rsp = DumpImageMetaDataToFileResponse()
         return jsonobject.dumps(rsp)
 
@@ -340,7 +354,7 @@ class SftpBackupStorageAgent(object):
     def get_images_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         # todo change bs_sftp_info.json to bs_image_info.json
-        bs_sftp_info_file = cmd.BackupStoragePath + '/' + self.SFTP_METADATA_FILE
+        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.SFTP_METADATA_FILE
         with open(bs_sftp_info_file) as fd:
             imagesInfo = fd.read()
         rsp = GetImageMetaDataResponse()
