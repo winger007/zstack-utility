@@ -331,11 +331,7 @@ class SftpBackupStorageAgent(object):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         image_uuid = cmd.imageUuid
         bs_sftp_info_file = cmd.backupStoragePath + '/' + self.SFTP_METADATA_FILE
-        with open(bs_sftp_info_file) as oldfile, open(bs_sftp_info_file + '.new', 'w') as newfile:
-            for line in oldfile:
-                if image_uuid not in line:
-                    newfile.write(line)
-        ret, output = bash_ro("mv %s %s.bak && mv %s.new %s" % (bs_sftp_info_file, bs_sftp_info_file, bs_sftp_info_file, bs_sftp_info_file))
+        ret, output = bash_ro("sed -i.bak '/%s/d' %s" % (image_uuid, bs_sftp_info_file))
         rsp = DeleteImageMetaDataResponse()
         rsp.ret = ret
         return jsonobject.dumps(rsp)
