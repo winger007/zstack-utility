@@ -106,7 +106,7 @@ class WriteImageMetaDataCmd(AgentCommand):
 class GetImageMetaDataResponse(AgentResponse):
     def __init__(self):
         super(GetImageMetaDataResponse,self).__init__()
-        self.ImagesMetaData = None
+        self.imagesMetaData = None
 
 class GetImageMetaDataCmd(AgentCommand):
     def __init__(self):
@@ -135,7 +135,7 @@ class GenerateImageMetaDataFileCmd(AgentCommand):
 class CheckImageMetaDataFileExistResponse(AgentResponse):
     def __init__(self):
         super(CheckImageMetaDataFileExistResponse, self).__init__()
-        self.BackupStorageMetaFileName = None
+        self.backupStorageMetaFileName = None
         self.exist = None
 
 class CheckImageMetaDataFileExistCmd(AgentCommand):
@@ -298,7 +298,7 @@ class SftpBackupStorageAgent(object):
         # todo change bs_sftp_info.json to bs_image_info.json
         bs_sftp_info_file = bs_path + '/' + self.SFTP_METADATA_FILE
         rsp = CheckImageMetaDataFileExistResponse()
-        rsp.BackupStorageMetaFileName = bs_sftp_info_file
+        rsp.backupStorageMetaFileName = bs_sftp_info_file
         if os.path.isfile(bs_sftp_info_file):
             rsp.exist = True
         else:
@@ -319,7 +319,6 @@ class SftpBackupStorageAgent(object):
         bs_sftp_info_file = cmd.backupStoragePath + '/' + self.SFTP_METADATA_FILE
         content = cmd.imageMetaData
         dump_all_metadata = cmd.dumpAllMetaData
-        logger.debug("meilei: dump_all_metadata is %s" % dump_all_metadata)
         if '[' == content[0] and ']' == content[-1]:
             if dump_all_metadata is True:
                 with open(bs_sftp_info_file, 'w') as fd:
@@ -358,7 +357,7 @@ class SftpBackupStorageAgent(object):
         with open(bs_sftp_info_file) as fd:
             imagesInfo = fd.read()
         rsp = GetImageMetaDataResponse()
-        rsp.ImagesMetaData = imagesInfo
+        rsp.imagesMetaData = imagesInfo
         return jsonobject.dumps(rsp)
 
     @in_bash
