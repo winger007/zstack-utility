@@ -319,21 +319,22 @@ class SftpBackupStorageAgent(object):
         bs_sftp_info_file = cmd.backupStoragePath + '/' + self.SFTP_METADATA_FILE
         content = cmd.imageMetaData
         dump_all_metadata = cmd.dumpAllMetaData
-        if '[' == content[0] and ']' == content[-1]:
-            if dump_all_metadata is True:
-                with open(bs_sftp_info_file, 'w') as fd:
-                    _write_info_to_metadata_file(fd)
+        if content is not None:
+            if '[' == content[0] and ']' == content[-1]:
+                if dump_all_metadata is True:
+                    with open(bs_sftp_info_file, 'w') as fd:
+                        _write_info_to_metadata_file(fd)
+                else:
+                    with open(bs_sftp_info_file, 'a') as fd:
+                        _write_info_to_metadata_file(fd)
             else:
-                with open(bs_sftp_info_file, 'a') as fd:
-                    _write_info_to_metadata_file(fd)
-        else:
-            #one image info
-            if dump_all_metadata is True:
-                with open(bs_sftp_info_file, 'w') as fd:
-                    fd.write(content + '\n')
-            else:
-                with open(bs_sftp_info_file, 'a') as fd:
-                    fd.write(content + '\n')
+                #one image info
+                if dump_all_metadata is True:
+                    with open(bs_sftp_info_file, 'w') as fd:
+                        fd.write(content + '\n')
+                else:
+                    with open(bs_sftp_info_file, 'a') as fd:
+                        fd.write(content + '\n')
 
         rsp = DumpImageMetaDataToFileResponse()
         return jsonobject.dumps(rsp)
@@ -349,15 +350,28 @@ class SftpBackupStorageAgent(object):
         rsp.ret = ret
         return jsonobject.dumps(rsp)
 
-
+    @in_bash
     def get_images_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        # todo change bs_sftp_info.json to bs_image_info.json
+        valid_images_info = ""
         bs_sftp_info_file = cmd.backupStoragePath + '/' + self.SFTP_METADATA_FILE
         with open(bs_sftp_info_file) as fd:
-            imagesInfo = fd.read()
+            images_info = fd.read()
+            for image_info in images_info.split('\n'):
+                if image_info != '':
+                    image_json = jsonobject.loads(image_info)
+                    # todo support multiple bs
+                    image_uuid = image_json['uuid']
+                    image_install_path = image_json["backupStorageRefs"][0]["installPath"]
+                    ret = bash_r("ls %s" % image_install_path)
+                    if ret == 0 :
+                        logger.info("Find image %s install path %s successfully!" % (image_uuid, image_install_path))
+                        valid_images_info = image_info + '\n' + valid_images_info
+                    else:
+                        logger.warn("Didn't find image %s install path %s" % (image_uuid, image_install_path))
+
         rsp = GetImageMetaDataResponse()
-        rsp.imagesMetaData = imagesInfo
+        rsp.imagesMetaData = valid_images_info
         return jsonobject.dumps(rsp)
 
     @in_bash
