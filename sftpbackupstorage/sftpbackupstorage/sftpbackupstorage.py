@@ -351,6 +351,7 @@ class SftpBackupStorageAgent(object):
         return jsonobject.dumps(rsp)
 
     @in_bash
+    @replyerror
     def get_images_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         valid_images_info = ""
@@ -365,10 +366,10 @@ class SftpBackupStorageAgent(object):
                     image_install_path = image_json["backupStorageRefs"][0]["installPath"]
                     ret = bash_r("ls %s" % image_install_path)
                     if ret == 0 :
-                        logger.info("Find image %s install path %s successfully!" % (image_uuid, image_install_path))
+                        logger.info("Check image %s install path %s successfully!" % (image_uuid, image_install_path))
                         valid_images_info = image_info + '\n' + valid_images_info
                     else:
-                        logger.warn("Didn't find image %s install path %s" % (image_uuid, image_install_path))
+                        logger.warn("Image %s install path %s is invalid!" % (image_uuid, image_install_path))
 
         rsp = GetImageMetaDataResponse()
         rsp.imagesMetaData = valid_images_info

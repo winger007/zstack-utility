@@ -58,6 +58,36 @@ class GetFactsRsp(AgentResponse):
         self.fsid = None
         self.monAddr = None
 
+class DeleteImageMetaDataResponse(AgentResponse):
+    def __init__(self):
+        super(DeleteImageMetaDataResponse,self).__init__()
+        self.ret = None
+
+class WriteImageMetaDataResponse(AgentResponse):
+    def __init__(self):
+        super(WriteImageMetaDataResponse,self).__init__()
+
+class GetImageMetaDataResponse(AgentResponse):
+    def __init__(self):
+        super(GetImageMetaDataResponse,self).__init__()
+        self.imagesMetaData = None
+
+class DumpImageMetaDataToFileResponse(AgentResponse):
+    def __init__(self):
+        super(DumpImageMetaDataToFileResponse,self).__init__()
+
+class GenerateImageMetaDataFileResponse(AgentResponse):
+    def __init__(self):
+        super(GenerateImageMetaDataFileResponse, self).__init__()
+        self.bsFileName = None
+
+class CheckImageMetaDataFileExistResponse(AgentResponse):
+    def __init__(self):
+        super(CheckImageMetaDataFileExistResponse, self).__init__()
+        self.backupStorageMetaFileName = None
+        self.exist = None
+
+
 def replyerror(func):
     @functools.wraps(func)
     def wrap(*args, **kwargs):
@@ -81,6 +111,13 @@ class CephAgent(object):
     ECHO_PATH = "/ceph/backupstorage/echo"
     GET_IMAGE_SIZE_PATH = "/ceph/backupstorage/image/getsize"
     GET_FACTS = "/ceph/backupstorage/facts"
+    GET_IMAGES_METADATA = "/ceph/backupstorage/getimagesmetadata"
+    DELETE_IMAGES_METADATA = "/ceph/backupstorage/deleteimagesmetadata"
+    DUMP_IMAGE_METADATA_TO_FILE = "/ceph/backupstorage/dumpimagemetadatatofile"
+    GENERATE_IMAGE_METADATA_FILE = "/ceph/backupstorage/generateimagemetadatafile"
+    CHECK_IMAGE_METADATA_FILE_EXIST = "/ceph/backupstorage/checkimagemetadatafileexist"
+
+    CEPH_METADATA_FILE = "bs_ceph_info.json"
 
     http_server = http.HttpServer(port=7761)
     http_server.logfile_path = log.get_logfile_path()
@@ -93,6 +130,11 @@ class CephAgent(object):
         self.http_server.register_async_uri(self.GET_IMAGE_SIZE_PATH, self.get_image_size)
         self.http_server.register_async_uri(self.GET_FACTS, self.get_facts)
         self.http_server.register_sync_uri(self.ECHO_PATH, self.echo)
+        self.http_server.register_sync_uri(self.GET_IMAGES_METADATA, self.get_images_metadata)
+        self.http_server.register_async_uri(self.GENERATE_IMAGE_METADATA_FILE, self.generate_image_metadata_file)
+        self.http_server.register_async_uri(self.CHECK_IMAGE_METADATA_FILE_EXIST, self.check_image_metadata_file_exist)
+        self.http_server.register_async_uri(self.DUMP_IMAGE_METADATA_TO_FILE, self.dump_image_metadata_to_file)
+        self.http_server.register_async_uri(self.DELETE_IMAGES_METADATA, self.delete_image_metadata_from_file)
 
     def _set_capacity_to_response(self, rsp):
         o = shell.call('ceph df -f json')
@@ -135,6 +177,140 @@ class CephAgent(object):
         path = self._normalize_install_path(cmd.installPath)
         rsp.size = self._get_file_size(path)
         return jsonobject.dumps(rsp)
+
+    @in_bash
+    @replyerror
+    def get_images_metadata(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        valid_images_info = ""
+        bs_ceph_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
+        with open(bs_ceph_info_file) as fd:
+            images_info = fd.read()
+            for image_info in images_info.split('\n'):
+                if image_info != '':
+                    image_json = jsonobject.loads(image_info)
+                    # todo support multiple bs
+                    image_uuid = image_json['uuid']
+                    image_install_path = image_json["backupStorageRefs"][0]["installPath"]
+                    ret = bash_r("rbd info %s" % image_install_path.split("//")[1])
+                    if ret == 0 :
+                        logger.info("Check image %s install path %s successfully!" % (image_uuid, image_install_path))
+                        valid_images_info = image_info + '\n' + valid_images_info
+                    else:
+                        logger.warn("Image %s install path %s is invalid!" % (image_uuid, image_install_path))
+
+        rsp = GetImageMetaDataResponse()
+        rsp.imagesMetaData = valid_images_info
+        return jsonobject.dumps(rsp)
+
+    @in_bash
+    def _generate_image_metadata_file(self, bs_path):
+        bs_meta_file = bs_path + '/' + self.CEPH_METADATA_FILE
+        if os.path.isfile(bs_meta_file) is False:
+            # dir = '/'.join(bs_path.split("/")[:-1])
+            if os.path.exists(bs_path) is False:
+                os.makedirs(bs_path)
+            ret, output = bash_ro("touch %s" % bs_meta_file)
+            if ret == 0:
+                return bs_meta_file
+            else:
+                raise Exception('can not create image metadata file %s' % output)
+        else:
+            return bs_meta_file
+
+    @replyerror
+    def generate_image_metadata_file(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_path = cmd.backupStoragePath
+        file_name = self._generate_image_metadata_file(bs_path)
+        rsp = GenerateImageMetaDataFileResponse()
+        rsp.bsFileName = file_name
+        return jsonobject.dumps(rsp)
+
+    @replyerror
+    def check_image_metadata_file_exist(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_path = cmd.backupStoragePath
+        # todo change bs_sftp_info.json to bs_image_info.json
+        bs_sftp_info_file = bs_path + '/' + self.CEPH_METADATA_FILE
+        rsp = CheckImageMetaDataFileExistResponse()
+        rsp.backupStorageMetaFileName = bs_sftp_info_file
+        if os.path.isfile(bs_sftp_info_file):
+            rsp.exist = True
+        else:
+            rsp.exist = False
+        return jsonobject.dumps(rsp)
+
+    @replyerror
+    def dump_image_metadata_to_file(self, req):
+        def _write_info_to_metadata_file(fd):
+            strip_list_content = content[1:-1]
+            data_list = strip_list_content.split('},')
+            for item in data_list:
+                if item.endswith("}") is not True:
+                    item = item + "}"
+                    fd.write(item + '\n')
+
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
+        content = cmd.imageMetaData
+        dump_all_metadata = cmd.dumpAllMetaData
+        if content is not None:
+            if '[' == content[0] and ']' == content[-1]:
+                if dump_all_metadata is True:
+                    with open(bs_sftp_info_file, 'w') as fd:
+                        _write_info_to_metadata_file(fd)
+                else:
+                    with open(bs_sftp_info_file, 'a') as fd:
+                        _write_info_to_metadata_file(fd)
+            else:
+                # one image info
+                if dump_all_metadata is True:
+                    with open(bs_sftp_info_file, 'w') as fd:
+                        fd.write(content + '\n')
+                else:
+                    with open(bs_sftp_info_file, 'a') as fd:
+                        fd.write(content + '\n')
+
+        rsp = DumpImageMetaDataToFileResponse()
+        return jsonobject.dumps(rsp)
+
+    @in_bash
+    @replyerror
+    def delete_image_metadata_from_file(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        image_uuid = cmd.imageUuid
+        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
+        ret, output = bash_ro("sed -i.bak '/%s/d' %s" % (image_uuid, bs_sftp_info_file))
+        rsp = DeleteImageMetaDataResponse()
+        rsp.ret = ret
+        return jsonobject.dumps(rsp)
+
+    @in_bash
+    @replyerror
+    def get_images_metadata(self, req):
+        cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        valid_images_info = ""
+        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
+        with open(bs_sftp_info_file) as fd:
+            images_info = fd.read()
+            for image_info in images_info.split('\n'):
+                if image_info != '':
+                    image_json = jsonobject.loads(image_info)
+                    # todo support multiple bs
+                    image_uuid = image_json['uuid']
+                    image_install_path = image_json["backupStorageRefs"][0]["installPath"]
+                    ret = bash_r("ls %s" % image_install_path)
+                    if ret == 0:
+                        logger.info("Check image %s install path %s successfully!" % (image_uuid, image_install_path))
+                        valid_images_info = image_info + '\n' + valid_images_info
+                    else:
+                        logger.warn("Image %s install path %s is invalid!" % (image_uuid, image_install_path))
+
+        rsp = GetImageMetaDataResponse()
+        rsp.imagesMetaData = valid_images_info
+        return jsonobject.dumps(rsp)
+
 
     @replyerror
     @in_bash
