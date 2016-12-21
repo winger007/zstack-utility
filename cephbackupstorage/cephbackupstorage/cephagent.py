@@ -227,22 +227,35 @@ class CephAgent(object):
         rsp.bsFileName = file_name
         return jsonobject.dumps(rsp)
 
+    @in_bash
     @replyerror
     def check_image_metadata_file_exist(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        bs_path = cmd.backupStoragePath
-        # todo change bs_sftp_info.json to bs_image_info.json
-        bs_sftp_info_file = bs_path + '/' + self.CEPH_METADATA_FILE
+        bs_uuid = cmd.backupStorageUuid
         rsp = CheckImageMetaDataFileExistResponse()
-        rsp.backupStorageMetaFileName = bs_sftp_info_file
-        if os.path.isfile(bs_sftp_info_file):
+        rsp.backupStorageMetaFileName = self.CEPH_METADATA_FILE
+        ret, output = bash_ro("rados -p bak-t-%s stat %s" % (bs_uuid,self.CEPH_METADATA_FILE))
+        if ret == 0:
             rsp.exist = True
         else:
             rsp.exist = False
         return jsonobject.dumps(rsp)
 
+    def get_metadata_file(self, bs_uuid, file_name):
+        local_file_name = "/tmp/%s" % file_name
+        bash_ro("rm -rf %s" % local_file_name)
+        bash_ro("rados -p bak-t-%s get %s %s" % (bs_uuid, file_name, local_file_name))
+
+    def put_metadata_file(self, bs_uuid, file_name):
+        local_file_name = "/tmp/%s" % file_name
+        ret, output = bash_ro("rados -p bak-t-%s put %s %s" % (bs_uuid, file_name, local_file_name))
+        if ret == 0:
+            bash_ro("rm -rf %s" % local_file_name)
+
+    @in_bash
     @replyerror
     def dump_image_metadata_to_file(self, req):
+
         def _write_info_to_metadata_file(fd):
             strip_list_content = content[1:-1]
             data_list = strip_list_content.split('},')
@@ -252,26 +265,29 @@ class CephAgent(object):
                     fd.write(item + '\n')
 
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
+        bs_uuid = cmd.backupStorageUuid
         content = cmd.imageMetaData
         dump_all_metadata = cmd.dumpAllMetaData
+        self.get_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
+        bs_ceph_info_file = "/tmp/%s" % self.CEPH_METADATA_FILE
         if content is not None:
             if '[' == content[0] and ']' == content[-1]:
                 if dump_all_metadata is True:
-                    with open(bs_sftp_info_file, 'w') as fd:
+                    with open(bs_ceph_info_file, 'w') as fd:
                         _write_info_to_metadata_file(fd)
                 else:
-                    with open(bs_sftp_info_file, 'a') as fd:
+                    with open(bs_ceph_info_file, 'a') as fd:
                         _write_info_to_metadata_file(fd)
             else:
                 # one image info
                 if dump_all_metadata is True:
-                    with open(bs_sftp_info_file, 'w') as fd:
+                    with open(bs_ceph_info_file, 'w') as fd:
                         fd.write(content + '\n')
                 else:
-                    with open(bs_sftp_info_file, 'a') as fd:
+                    with open(bs_ceph_info_file, 'a') as fd:
                         fd.write(content + '\n')
 
+        self.put_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
         rsp = DumpImageMetaDataToFileResponse()
         return jsonobject.dumps(rsp)
 
@@ -280,8 +296,11 @@ class CephAgent(object):
     def delete_image_metadata_from_file(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         image_uuid = cmd.imageUuid
-        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
-        ret, output = bash_ro("sed -i.bak '/%s/d' %s" % (image_uuid, bs_sftp_info_file))
+        bs_uuid = cmd.backupStorageUuid
+        self.get_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
+        bs_ceph_info_file = "/tmp/%s" % self.CEPH_METADATA_FILE
+        ret, output = bash_ro("sed -i.bak '/%s/d' %s" % (image_uuid, bs_ceph_info_file))
+        self.put_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
         rsp = DeleteImageMetaDataResponse()
         rsp.ret = ret
         return jsonobject.dumps(rsp)
@@ -291,8 +310,8 @@ class CephAgent(object):
     def get_images_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
         valid_images_info = ""
-        bs_sftp_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
-        with open(bs_sftp_info_file) as fd:
+        bs_ceph_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
+        with open(bs_ceph_info_file) as fd:
             images_info = fd.read()
             for image_info in images_info.split('\n'):
                 if image_info != '':
