@@ -76,11 +76,6 @@ class DumpImageMetaDataToFileResponse(AgentResponse):
     def __init__(self):
         super(DumpImageMetaDataToFileResponse,self).__init__()
 
-class GenerateImageMetaDataFileResponse(AgentResponse):
-    def __init__(self):
-        super(GenerateImageMetaDataFileResponse, self).__init__()
-        self.bsFileName = None
-
 class CheckImageMetaDataFileExistResponse(AgentResponse):
     def __init__(self):
         super(CheckImageMetaDataFileExistResponse, self).__init__()
@@ -114,7 +109,6 @@ class CephAgent(object):
     GET_IMAGES_METADATA = "/ceph/backupstorage/getimagesmetadata"
     DELETE_IMAGES_METADATA = "/ceph/backupstorage/deleteimagesmetadata"
     DUMP_IMAGE_METADATA_TO_FILE = "/ceph/backupstorage/dumpimagemetadatatofile"
-    GENERATE_IMAGE_METADATA_FILE = "/ceph/backupstorage/generateimagemetadatafile"
     CHECK_IMAGE_METADATA_FILE_EXIST = "/ceph/backupstorage/checkimagemetadatafileexist"
 
     CEPH_METADATA_FILE = "bs_ceph_info.json"
@@ -131,7 +125,6 @@ class CephAgent(object):
         self.http_server.register_async_uri(self.GET_FACTS, self.get_facts)
         self.http_server.register_sync_uri(self.ECHO_PATH, self.echo)
         self.http_server.register_sync_uri(self.GET_IMAGES_METADATA, self.get_images_metadata)
-        self.http_server.register_async_uri(self.GENERATE_IMAGE_METADATA_FILE, self.generate_image_metadata_file)
         self.http_server.register_async_uri(self.CHECK_IMAGE_METADATA_FILE_EXIST, self.check_image_metadata_file_exist)
         self.http_server.register_async_uri(self.DUMP_IMAGE_METADATA_TO_FILE, self.dump_image_metadata_to_file)
         self.http_server.register_async_uri(self.DELETE_IMAGES_METADATA, self.delete_image_metadata_from_file)
@@ -182,8 +175,10 @@ class CephAgent(object):
     @replyerror
     def get_images_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_uuid = cmd.backupStorageUuid
         valid_images_info = ""
-        bs_ceph_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
+        self.get_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
+        bs_ceph_info_file = "/tmp/%s" % self.CEPH_METADATA_FILE
         with open(bs_ceph_info_file) as fd:
             images_info = fd.read()
             for image_info in images_info.split('\n'):
@@ -199,32 +194,9 @@ class CephAgent(object):
                     else:
                         logger.warn("Image %s install path %s is invalid!" % (image_uuid, image_install_path))
 
+        self.put_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
         rsp = GetImageMetaDataResponse()
         rsp.imagesMetaData = valid_images_info
-        return jsonobject.dumps(rsp)
-
-    @in_bash
-    def _generate_image_metadata_file(self, bs_path):
-        bs_meta_file = bs_path + '/' + self.CEPH_METADATA_FILE
-        if os.path.isfile(bs_meta_file) is False:
-            # dir = '/'.join(bs_path.split("/")[:-1])
-            if os.path.exists(bs_path) is False:
-                os.makedirs(bs_path)
-            ret, output = bash_ro("touch %s" % bs_meta_file)
-            if ret == 0:
-                return bs_meta_file
-            else:
-                raise Exception('can not create image metadata file %s' % output)
-        else:
-            return bs_meta_file
-
-    @replyerror
-    def generate_image_metadata_file(self, req):
-        cmd = jsonobject.loads(req[http.REQUEST_BODY])
-        bs_path = cmd.backupStoragePath
-        file_name = self._generate_image_metadata_file(bs_path)
-        rsp = GenerateImageMetaDataFileResponse()
-        rsp.bsFileName = file_name
         return jsonobject.dumps(rsp)
 
     @in_bash
@@ -268,7 +240,11 @@ class CephAgent(object):
         bs_uuid = cmd.backupStorageUuid
         content = cmd.imageMetaData
         dump_all_metadata = cmd.dumpAllMetaData
-        self.get_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
+        if dump_all_metadata is True:
+            # this means no metadata exist in ceph
+            bash_r("touch /tmp/%s" % self.CEPH_METADATA_FILE)
+        else:
+            self.get_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
         bs_ceph_info_file = "/tmp/%s" % self.CEPH_METADATA_FILE
         if content is not None:
             if '[' == content[0] and ']' == content[-1]:
@@ -309,8 +285,10 @@ class CephAgent(object):
     @replyerror
     def get_images_metadata(self, req):
         cmd = jsonobject.loads(req[http.REQUEST_BODY])
+        bs_uuid = cmd.backupStorageUuid
         valid_images_info = ""
-        bs_ceph_info_file = cmd.backupStoragePath + '/' + self.CEPH_METADATA_FILE
+        self.get_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
+        bs_ceph_info_file = "/tmp/%s" % self.CEPH_METADATA_FILE
         with open(bs_ceph_info_file) as fd:
             images_info = fd.read()
             for image_info in images_info.split('\n'):
@@ -326,6 +304,7 @@ class CephAgent(object):
                     else:
                         logger.warn("Image %s install path %s is invalid!" % (image_uuid, image_install_path))
 
+        self.put_metadata_file(bs_uuid, self.CEPH_METADATA_FILE)
         rsp = GetImageMetaDataResponse()
         rsp.imagesMetaData = valid_images_info
         return jsonobject.dumps(rsp)
