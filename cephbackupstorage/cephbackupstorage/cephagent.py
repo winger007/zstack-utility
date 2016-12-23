@@ -378,7 +378,13 @@ class CephAgent(object):
             fail_if_has_backing_file(cmd.url)
             # roll back tmp ceph file after import it
             _1()
-            shell.call('set -o pipefail;wget --no-check-certificate -q -O - %s | rbd import --image-format 2 - %s/%s'
+            progress = Progress()
+            progress.processType = "LocalStorageMigrateVolume"
+            progress.resourceUuid = to.resourceUuid
+            progress.stages = {1: "0:10", 2: "10:90", 3: "90:100"}
+            progress.stage = 1
+            progress.total = os.path.getsize(to.path)
+            bash_progress('set -o pipefail;wget --no-check-certificate -O - %s 2>&1| rbd import --image-format 2 - %s/%s'
                        % (cmd.url, pool, tmp_image_name))
             actual_size = linux.get_file_size_by_http_head(cmd.url)
 
