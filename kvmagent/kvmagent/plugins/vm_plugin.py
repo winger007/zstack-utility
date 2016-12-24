@@ -2410,6 +2410,8 @@ class Vm(object):
                 e(interface, 'mac', None, {'address': nic.mac})
                 e(interface, 'alias', None, {'name': 'net%s' % nic.nicInternalName.split('.')[1]})
                 e(interface, 'source', None, {'bridge': nic.bridgeName})
+                filterref = e(interface, 'filterref', None, {'filter':'clean-traffic'})
+                e(filterref, 'cpu', None, {"parameter name='IP' value": '%s' % nic.ip})
                 if use_virtio:
                     e(interface, 'model', None, {'type': 'virtio'})
                 else:
