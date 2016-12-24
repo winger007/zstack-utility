@@ -4,14 +4,11 @@ import zstacklib.utils.daemon as daemon
 import zstacklib.utils.http as http
 import zstacklib.utils.log as log
 import zstacklib.utils.shell as shell
-import zstacklib.utils.iptables as iptables
 import zstacklib.utils.jsonobject as jsonobject
-import zstacklib.utils.lock as lock
 import zstacklib.utils.linux as linux
-import zstacklib.utils.sizeunit as sizeunit
-from zstacklib.utils import plugin
 from zstacklib.utils.rollback import rollback, rollbackable
 from zstacklib.utils.bash import *
+from zstacklib.utils.report import Progress
 
 import os
 import os.path
@@ -373,17 +370,33 @@ class CephAgent(object):
         def _1():
             shell.call('rbd rm %s/%s' % (pool, tmp_image_name))
 
+        def _getRealSize(length):
+            '''length looks like: 10245K'''
+            if not length[-1].isalpha():
+                return length
+            units = {
+                "g": lambda x: x * 1024 *1024 *1024,
+                "m": lambda x: x * 1024 * 1024,
+                "k": lambda x: x * 1024,
+            }
+            try:
+                return units[length[-1].lower()](int(length[:-1]))
+            except Exception as e:
+                logger.warn(e.message)
+                return 0
 
         if cmd.url.startswith('http://') or cmd.url.startswith('https://'):
             fail_if_has_backing_file(cmd.url)
             # roll back tmp ceph file after import it
             _1()
             progress = Progress()
-            progress.processType = "LocalStorageMigrateVolume"
-            progress.resourceUuid = to.resourceUuid
-            progress.stages = {1: "0:10", 2: "10:90", 3: "90:100"}
+            progress.processType = "AddImage"
+            progress.resourceUuid = cmd.imageUuid
+            progress.stages = {1: "0:100"}
             progress.stage = 1
-            progress.total = os.path.getsize(to.path)
+            content_length = shell.call('curl -sI %s|grep Content-Length', cmd.url).strip().split()[0]
+            progress.total = _getRealSize(content_length)
+            logger.debug("content-length is: %s", progress.total)
             bash_progress('set -o pipefail;wget --no-check-certificate -O - %s 2>&1| rbd import --image-format 2 - %s/%s'
                        % (cmd.url, pool, tmp_image_name))
             actual_size = linux.get_file_size_by_http_head(cmd.url)

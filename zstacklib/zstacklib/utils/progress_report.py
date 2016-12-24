@@ -40,9 +40,7 @@ class WatchThread(threading.Thread):
                     if synced < self.progress.total:
                         percent = start if start == end \
                             else int(round(float(synced) / float(self.progress.total) * (end - start) + start))
-                    else:
-                        break
-                    self._progress_report(percent, self.progress.getReport())
+                        self._progress_report(percent, self.progress.getReport())
                 else:
                     pass
             except Exception as e:

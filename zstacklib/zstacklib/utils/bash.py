@@ -97,6 +97,7 @@ def bash_errorout(cmd, code=0, pipe_fail=False):
 def bash_progress(cmd, progress):
     ctx = __collect_locals_on_stack()
     cmd = bash_eval(cmd, ctx)
+    logger.debug(cmd)
 
     progress_report = shell.call('mktemp /tmp/tmp-XXXXXX').strip()
     @rollbackable
