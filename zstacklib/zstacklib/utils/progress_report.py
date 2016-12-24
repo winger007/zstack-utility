@@ -32,10 +32,10 @@ class WatchThread(threading.Thread):
             synced = 0
             logger.debug(line)
             lines = line.split()
-            logger.debug("line: %s, synced: %s, total: %s", line, synced, self.progress.total)
+            logger.debug("line: %s, synced: %s, total: %s" % (line, synced, self.progress.total))
             try:
                 if len(lines) > 1 and self.progress.total > 0:
-                    logger.debug("lines[1]: %s", lines[1])
+                    logger.debug("lines[1]: %s" % lines[1])
                     synced += long(lines[1])
                     if synced < self.progress.total:
                         percent = start if start == end \
@@ -45,7 +45,7 @@ class WatchThread(threading.Thread):
                     pass
             except Exception as e:
                 # sometimes the line is not illegal, we cannot stop the action
-                logger.debug("ignore the exception: %s", e.message)
+                logger.debug("ignore the exception: %s" % e.message)
                 pass
             time.sleep(1)
         self._progress_report(end, self.progress.getEnd())
@@ -58,7 +58,7 @@ class WatchThread(threading.Thread):
         self._progress_report(self, percent, self.progress.getReport())
 
     def _progress_report(self, percent, flag):
-        logger.debug("progress is: %s", percent)
+        logger.debug("progress is: %s" % percent)
         try:
             reports = Report()
             reports.progress = percent
@@ -74,7 +74,7 @@ class WatchThread(threading.Thread):
         except Exception as e:
             content = traceback.format_exc()
             logger.warn(content)
-            logger.warn("report progress failed: %s", e.message)
+            logger.warn("report progress failed: %s" % e.message)
 
 
 def main():
@@ -89,7 +89,7 @@ def main():
     fpwrite.close()
     os.remove(test_out)
     if r != 0:
-        print "error return: %s", r
+        print "error return: %s" % r
 
 if __name__ == "__main__":
     main()

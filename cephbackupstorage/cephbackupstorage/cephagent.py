@@ -398,7 +398,7 @@ class CephAgent(object):
             progress.total = _getRealSize(content_length)
             logger.debug("content-length is: %s" % progress.total)
             bash_progress('set -o pipefail;wget --no-check-certificate -O - %s 2>&1| rbd import --image-format 2 - %s/%s'
-                       % (cmd.url, pool, tmp_image_name))
+                       % (cmd.url, pool, tmp_image_name), progress)
             actual_size = linux.get_file_size_by_http_head(cmd.url)
 
         elif cmd.url.startswith('file://'):
